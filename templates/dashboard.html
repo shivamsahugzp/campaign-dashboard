@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Dashboard - Real-time Analytics</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+        
+        .dashboard-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+        
+        .header h1 {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stats-card h3 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .stats-card p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .data-table {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table {
+            margin-bottom: 0;
+        }
+        
+        .table th {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .table td {
+            border-color: #e9ecef;
+            vertical-align: middle;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: var(--success-color);
+            animation: pulse 2s infinite;
+        }
+        
+        .status-offline {
+            background-color: var(--danger-color);
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
+            border: none;
+            border-radius: 25px;
+            padding: 12px 25px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .demo-mode {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ffeaa7;
+        }
+        
+        .last-updated {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+        
+        .sheet-url-input {
+            margin-bottom: 20px;
+        }
+        
+        .sheet-url-input input {
+            border-radius: 25px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .sheet-url-input input:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="dashboard-container">
+            <!-- Header -->
+            <div class="header">
+                <h1><i class="fas fa-chart-line"></i> Campaign Dashboard</h1>
+                <p>Real-time Google Sheets monitoring with advanced analytics</p>
+            </div>
+            
+            <!-- Status and Controls -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="sheet-url-input">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-link"></i></span>
+                            <input type="text" class="form-control" id="sheetUrl" 
+                                   placeholder="Enter Google Sheets URL (optional - uses default if empty)">
+                            <button class="btn btn-outline-secondary" type="button" id="loadSheetBtn">
+                                <i class="fas fa-sync"></i> Load Sheet
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn refresh-btn" id="refreshBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh Data
+                    </button>
+                    <div class="mt-2">
+                        <span class="status-indicator status-offline" id="statusIndicator"></span>
+                        <span id="statusText">Disconnected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Error Messages -->
+            <div id="errorContainer"></div>
+            <div id="demoModeContainer"></div>
+            
+            <!-- Loading Spinner -->
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Loading data...</p>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="row" id="statsContainer">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+            
+            <!-- Charts Row -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h4 class="chart-title"><i class="fas fa-chart-bar"></i> Performance Overview</h4>
+                        <canvas id="performanceChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h4 class="chart-title"><i class="fas fa-chart-pie"></i> Distribution Analysis</h4>
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Table -->
+            <div class="data-table">
+                <h4 class="chart-title"><i class="fas fa-table"></i> Data Overview</h4>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="dataTable">
+                        <thead>
+                            <tr>
+                                <!-- Headers will be populated by JavaScript -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Last Updated -->
+            <div class="last-updated" id="lastUpdated">
+                Last updated: Never
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        class CampaignDashboard {
+            constructor() {
+                this.charts = {};
+                this.refreshInterval = null;
+                this.isDemoMode = false;
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.loadData();
+                this.startAutoRefresh();
+            }
+            
+            setupEventListeners() {
+                document.getElementById('refreshBtn').addEventListener('click', () => {
+                    this.loadData();
+                });
+                
+                document.getElementById('loadSheetBtn').addEventListener('click', () => {
+                    this.loadData();
+                });
+                
+                document.getElementById('sheetUrl').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.loadData();
+                    }
+                });
+            }
+            
+            async loadData() {
+                this.showLoading(true);
+                this.clearErrorMessages();
+                
+                try {
+                    const sheetUrl = document.getElementById('sheetUrl').value;
+                    const url = sheetUrl ? `/api/data?sheet_url=${encodeURIComponent(sheetUrl)}` : '/api/data';
+                    
+                    const response = await fetch(url);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        this.showError(data.error);
+                        if (data.demo_mode) {
+                            this.showDemoMode();
+                            this.loadDemoData();
+                        }
+                    } else {
+                        this.updateDashboard(data);
+                        this.updateStatus(true);
+                    }
+                } catch (error) {
+                    this.showError('Failed to load data: ' + error.message);
+                    this.updateStatus(false);
+                } finally {
+                    this.showLoading(false);
+                }
+            }
+            
+            async loadDemoData() {
+                try {
+                    const response = await fetch('/api/demo-data');
+                    const data = await response.json();
+                    this.updateDashboard(data);
+                    this.isDemoMode = true;
+                    this.showDemoMode();
+                } catch (error) {
+                    console.error('Failed to load demo data:', error);
+                }
+            }
+            
+            updateDashboard(data) {
+                this.updateStats(data.stats);
+                this.updateCharts(data);
+                this.updateTable(data.sample_data);
+                this.updateLastUpdated(data.last_update);
+            }
+            
+            updateStats(stats) {
+                const container = document.getElementById('statsContainer');
+                container.innerHTML = `
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <h3>${stats.total_rows}</h3>
+                            <p><i class="fas fa-database"></i> Total Records</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <h3>${stats.total_columns}</h3>
+                            <p><i class="fas fa-columns"></i> Columns</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <h3>${Object.keys(stats.data_types).length}</h3>
+                            <p><i class="fas fa-tags"></i> Data Types</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card">
+                            <h3>${new Date().toLocaleTimeString()}</h3>
+                            <p><i class="fas fa-clock"></i> Last Update</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            updateCharts(data) {
+                this.createPerformanceChart(data.numeric_stats);
+                this.createDistributionChart(data.sample_data);
+            }
+            
+            createPerformanceChart(numericStats) {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                
+                if (this.charts.performance) {
+                    this.charts.performance.destroy();
+                }
+                
+                const labels = Object.keys(numericStats);
+                const datasets = [];
+                
+                ['sum', 'mean', 'max'].forEach((metric, index) => {
+                    datasets.push({
+                        label: metric.charAt(0).toUpperCase() + metric.slice(1),
+                        data: labels.map(label => numericStats[label][metric] || 0),
+                        backgroundColor: [
+                            'rgba(52, 152, 219, 0.8)',
+                            'rgba(46, 204, 113, 0.8)',
+                            'rgba(241, 196, 15, 0.8)'
+                        ][index],
+                        borderColor: [
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(241, 196, 15, 1)'
+                        ][index],
+                        borderWidth: 2
+                    });
+                });
+                
+                this.charts.performance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            createDistributionChart(sampleData) {
+                const ctx = document.getElementById('distributionChart').getContext('2d');
+                
+                if (this.charts.distribution) {
+                    this.charts.distribution.destroy();
+                }
+                
+                // Create a simple distribution based on first numeric column
+                const numericColumns = Object.keys(sampleData[0] || {}).filter(key => 
+                    typeof sampleData[0][key] === 'number'
+                );
+                
+                if (numericColumns.length === 0) {
+                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('No numeric data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                    return;
+                }
+                
+                const firstNumericCol = numericColumns[0];
+                const values = sampleData.map(row => row[firstNumericCol]).slice(0, 10);
+                
+                this.charts.distribution = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: values.map((_, i) => `Item ${i + 1}`),
+                        datasets: [{
+                            data: values,
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                                '#4BC0C0', '#FF6384'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            }
+                        }
+                    }
+                });
+            }
+            
+            updateTable(sampleData) {
+                const table = document.getElementById('dataTable');
+                const thead = table.querySelector('thead tr');
+                const tbody = table.querySelector('tbody');
+                
+                if (sampleData.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="100%" class="text-center">No data available</td></tr>';
+                    return;
+                }
+                
+                // Update headers
+                const headers = Object.keys(sampleData[0]);
+                thead.innerHTML = headers.map(header => 
+                    `<th>${header.charAt(0).toUpperCase() + header.slice(1)}</th>`
+                ).join('');
+                
+                // Update rows
+                tbody.innerHTML = sampleData.slice(0, 20).map(row => 
+                    `<tr>${headers.map(header => 
+                        `<td>${this.formatCellValue(row[header])}</td>`
+                    ).join('')}</tr>`
+                ).join('');
+            }
+            
+            formatCellValue(value) {
+                if (typeof value === 'number') {
+                    return value.toLocaleString();
+                }
+                if (typeof value === 'string' && value.length > 50) {
+                    return value.substring(0, 50) + '...';
+                }
+                return value;
+            }
+            
+            updateLastUpdated(timestamp) {
+                const element = document.getElementById('lastUpdated');
+                if (timestamp) {
+                    const date = new Date(timestamp);
+                    element.textContent = `Last updated: ${date.toLocaleString()}`;
+                }
+            }
+            
+            updateStatus(isOnline) {
+                const indicator = document.getElementById('statusIndicator');
+                const text = document.getElementById('statusText');
+                
+                if (isOnline) {
+                    indicator.className = 'status-indicator status-online';
+                    text.textContent = 'Connected';
+                } else {
+                    indicator.className = 'status-indicator status-offline';
+                    text.textContent = 'Disconnected';
+                }
+            }
+            
+            showLoading(show) {
+                document.getElementById('loadingSpinner').style.display = show ? 'block' : 'none';
+            }
+            
+            showError(message) {
+                const container = document.getElementById('errorContainer');
+                container.innerHTML = `
+                    <div class="error-message">
+                        <i class="fas fa-exclamation-triangle"></i> ${message}
+                    </div>
+                `;
+            }
+            
+            showDemoMode() {
+                const container = document.getElementById('demoModeContainer');
+                container.innerHTML = `
+                    <div class="demo-mode">
+                        <i class="fas fa-info-circle"></i> 
+                        Running in demo mode with sample data. Configure Google Sheets credentials to connect to real data.
+                    </div>
+                `;
+            }
+            
+            clearErrorMessages() {
+                document.getElementById('errorContainer').innerHTML = '';
+                document.getElementById('demoModeContainer').innerHTML = '';
+            }
+            
+            startAutoRefresh() {
+                // Refresh every 60 seconds
+                this.refreshInterval = setInterval(() => {
+                    this.loadData();
+                }, 60000);
+            }
+        }
+        
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new CampaignDashboard();
+        });
+    </script>
+</body>
+</html>

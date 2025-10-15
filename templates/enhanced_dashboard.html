@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Campaign Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/datatables.net-bs5@1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net@1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/datatables.net-bs5@1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .navbar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        }
+
+        .metric-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .metric-label {
+            font-size: 1.1rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .metric-change {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .metric-change.positive {
+            color: var(--success-color);
+        }
+
+        .metric-change.negative {
+            color: var(--danger-color);
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-live {
+            background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .status-posted {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #fd7e14 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
+        }
+
+        .status-no-file {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #e74c3c 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .dataTables_wrapper {
+            margin-top: 20px;
+        }
+
+        .dataTables_filter input {
+            border-radius: 25px;
+            border: 2px solid #e9ecef;
+            padding: 8px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .dataTables_filter input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .dataTables_length select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 5px 10px;
+        }
+
+        .dataTables_info {
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .pagination .page-link {
+            border-radius: 10px;
+            margin: 0 2px;
+            border: 2px solid #e9ecef;
+            color: var(--primary-color);
+            transition: all 0.3s ease;
+        }
+
+        .pagination .page-link:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .pagination .page-item.active .page-link {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .live-indicator {
+            animation: pulse 2s infinite;
+            color: var(--success-color);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .config-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
+            border-radius: 15px;
+            padding: 12px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-outline-primary {
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            border-radius: 15px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+
+        .form-control {
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+            padding: 12px 20px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .alert {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .progress {
+            height: 8px;
+            border-radius: 10px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border-radius: 10px;
+        }
+
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.15);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .analytics-section {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .export-btn {
+            background: linear-gradient(135deg, var(--success-color) 0%, #20c997 100%);
+            border: none;
+            border-radius: 15px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4);
+            color: white;
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-item {
+            min-width: 150px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .filter-item {
+                min-width: auto;
+            }
+            
+            .refresh-indicator {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-bottom: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line"></i>
+                Enhanced Campaign Dashboard
+                <span class="live-indicator ms-2">🔴 LIVE</span>
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <i class="fas fa-clock"></i>
+                    <span id="lastUpdate">Last update: Never</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid p-4">
+        <!-- Configuration Panel -->
+        <div class="config-panel">
+            <h5 class="mb-3"><i class="fas fa-cog"></i> Configuration</h5>
+            <div class="row">
+                <div class="col-md-8">
+                    <input type="url" class="form-control" id="sheetUrl" 
+                           placeholder="Enter your Google Sheets URL..." 
+                           value="https://docs.google.com/spreadsheets/d/1suvLm83Xlsx4k4h1KJqugFt0sh6dQn3Z47ugXr8lN5c/edit?gid=475146199">
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" onclick="updateConfig()">
+                        <i class="fas fa-sync-alt"></i> Load Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Refresh Controls -->
+        <div class="refresh-indicator">
+            <button class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button class="btn btn-success btn-sm ms-2" onclick="exportData()">
+                <i class="fas fa-download"></i> Export
+            </button>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent">
+            <!-- Enhanced Metrics -->
+            <div class="stats-grid">
+                <div class="metric-card card-hover">
+                    <div class="metric-value" id="totalClients">-</div>
+                    <div class="metric-label">Total Clients</div>
+                    <div class="metric-change positive" id="clientsChange">
+                        <i class="fas fa-arrow-up"></i> Active
+                    </div>
+                </div>
+                <div class="metric-card card-hover">
+                    <div class="metric-value" id="liveCampaigns">-</div>
+                    <div class="metric-label">Live Campaigns</div>
+                    <div class="metric-change positive" id="campaignsChange">
+                        <i class="fas fa-play-circle"></i> Running
+                    </div>
+                </div>
+                <div class="metric-card card-hover">
+                    <div class="metric-value" id="totalLeads">-</div>
+                    <div class="metric-label">Total Leads Dialled</div>
+                    <div class="metric-change" id="leadsChange">
+                        <i class="fas fa-phone"></i> Calls Made
+                    </div>
+                </div>
+                <div class="metric-card card-hover">
+                    <div class="metric-value" id="connectedCalls">-</div>
+                    <div class="metric-label">Connected Calls</div>
+                    <div class="metric-change" id="callsChange">
+                        <i class="fas fa-check-circle"></i> Successful
+                    </div>
+                </div>
+                <div class="metric-card card-hover">
+                    <div class="metric-value" id="successRate">-</div>
+                    <div class="metric-label">Success Rate</div>
+                    <div class="metric-change" id="successChange">
+                        <i class="fas fa-percentage"></i> Conversion
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Charts Section -->
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="chart-container card-hover">
+                        <div class="chart-title">
+                            <i class="fas fa-pie-chart"></i>
+                            Campaign Status Distribution
+                        </div>
+                        <canvas id="campaignStatusChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="chart-container card-hover">
+                        <div class="chart-title">
+                            <i class="fas fa-bar-chart"></i>
+                            Application Status Breakdown
+                        </div>
+                        <canvas id="applicationStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="chart-container card-hover">
+                        <div class="chart-title">
+                            <i class="fas fa-robot"></i>
+                            Bot Types Distribution
+                        </div>
+                        <canvas id="botTypesChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="chart-container card-hover">
+                        <div class="chart-title">
+                            <i class="fas fa-clock"></i>
+                            Hourly Campaign Distribution
+                        </div>
+                        <canvas id="hourlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Analytics -->
+            <div class="analytics-section">
+                <div class="section-title">
+                    <i class="fas fa-analytics"></i>
+                    Advanced Analytics
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-users"></i> Reporting Managers</h6>
+                        <div id="reportingCmsChart"></div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-building"></i> Client Status Overview</h6>
+                        <div id="clientStatusChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Table with Filters -->
+            <div class="table-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="section-title mb-0">
+                        <i class="fas fa-table"></i>
+                        Live Campaigns - Interactive Table
+                    </h5>
+                    <div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="toggleFilters()">
+                            <i class="fas fa-filter"></i> Filters
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filter Section -->
+                <div id="filterSection" class="filter-section" style="display: none;">
+                    <div class="filter-row">
+                        <div class="filter-item">
+                            <label class="form-label">Status Filter:</label>
+                            <select class="form-select" id="statusFilter">
+                                <option value="">All Statuses</option>
+                                <option value="Live">Live</option>
+                                <option value="Posted">Posted</option>
+                                <option value="No File">No File</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label class="form-label">Application Status:</label>
+                            <select class="form-select" id="appStatusFilter">
+                                <option value="">All Applications</option>
+                                <option value="Studio">Studio</option>
+                                <option value="Application">Application</option>
+                                <option value="LLM-Studio">LLM-Studio</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label class="form-label">Search Client:</label>
+                            <input type="text" class="form-control" id="clientSearch" placeholder="Search clients...">
+                        </div>
+                        <div class="filter-item">
+                            <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="campaignsTable">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Client</th>
+                                <th>Bot Name</th>
+                                <th>Campaign Times</th>
+                                <th>Status</th>
+                                <th>App Status</th>
+                                <th>Monitoring</th>
+                                <th>Reports</th>
+                                <th>Reporting CM</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="9" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading your enhanced dashboard...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="alert alert-danger" style="display: none;">
+            <h5><i class="fas fa-exclamation-triangle"></i> Unable to Load Data</h5>
+            <p id="errorMessage"></p>
+            <p><strong>Quick Fix:</strong> Make sure your Google Sheet is publicly viewable or shared with "Anyone with the link can view"</p>
+        </div>
+    </div>
+
+    <script>
+        let campaignStatusChart, applicationStatusChart, botTypesChart, hourlyChart;
+        let campaignsDataTable;
+
+        // Initialize charts
+        function initCharts() {
+            const ctx1 = document.getElementById('campaignStatusChart').getContext('2d');
+            const ctx2 = document.getElementById('applicationStatusChart').getContext('2d');
+            const ctx3 = document.getElementById('botTypesChart').getContext('2d');
+            const ctx4 = document.getElementById('hourlyChart').getContext('2d');
+
+            campaignStatusChart = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#17a2b8',
+                            '#6f42c1'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            applicationStatusChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Count',
+                        data: [],
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            botTypesChart = new Chart(ctx3, {
+                type: 'pie',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#f5576c'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            hourlyChart = new Chart(ctx4, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Campaigns',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize DataTable
+        function initDataTable() {
+            campaignsDataTable = $('#campaignsTable').DataTable({
+                responsive: true,
+                pageLength: 25,
+                order: [[0, 'asc']],
+                language: {
+                    search: "Search campaigns:",
+                    lengthMenu: "Show _MENU_ campaigns per page",
+                    info: "Showing _START_ to _END_ of _TOTAL_ campaigns",
+                    paginate: {
+                        first: "First",
+                        last: "Last",
+                        next: "Next",
+                        previous: "Previous"
+                    }
+                },
+                columnDefs: [
+                    {
+                        targets: [2, 4, 5, 6],
+                        className: 'text-center'
+                    },
+                    {
+                        targets: [8],
+                        orderable: false,
+                        className: 'text-center'
+                    }
+                ]
+            });
+        }
+
+        // Show loading state
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+        }
+
+        // Show error state
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+        }
+
+        // Fetch data from API
+        async function fetchData() {
+            try {
+                const response = await axios.get('/api/data');
+                const data = response.data.data;
+                
+                if (data && data.metrics) {
+                    showDashboard();
+                    updateMetrics(data.metrics);
+                    updateCharts(data.metrics, data.analytics);
+                    updateTable(data.raw_data || []);
+                    updateLastUpdateTime(response.data.last_update);
+                } else {
+                    showError('No data found. Please check your sheet URL and sharing settings.');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError('Failed to fetch data. Please check your sheet URL and sharing settings.');
+            }
+        }
+
+        // Update metrics cards
+        function updateMetrics(metrics) {
+            document.getElementById('totalClients').textContent = metrics.total_clients || 0;
+            document.getElementById('liveCampaigns').textContent = metrics.live_campaigns || 0;
+            document.getElementById('totalLeads').textContent = metrics.total_leads_dialled || 0;
+            document.getElementById('connectedCalls').textContent = metrics.total_connected_calls || 0;
+            document.getElementById('successRate').textContent = (metrics.success_rate || 0) + '%';
+        }
+
+        // Update charts
+        function updateCharts(metrics, analytics) {
+            // Campaign Status Chart
+            if (metrics.campaign_status_breakdown) {
+                const statusData = metrics.campaign_status_breakdown;
+                campaignStatusChart.data.labels = Object.keys(statusData);
+                campaignStatusChart.data.datasets[0].data = Object.values(statusData);
+                campaignStatusChart.update();
+            }
+
+            // Application Status Chart
+            if (metrics.application_status_breakdown) {
+                const appData = metrics.application_status_breakdown;
+                applicationStatusChart.data.labels = Object.keys(appData);
+                applicationStatusChart.data.datasets[0].data = Object.values(appData);
+                applicationStatusChart.update();
+            }
+
+            // Bot Types Chart
+            if (metrics.bot_types_breakdown) {
+                const botData = metrics.bot_types_breakdown;
+                botTypesChart.data.labels = Object.keys(botData);
+                botTypesChart.data.datasets[0].data = Object.values(botData);
+                botTypesChart.update();
+            }
+
+            // Hourly Chart
+            if (metrics.hourly_distribution) {
+                const hourlyData = metrics.hourly_distribution;
+                const sortedHours = Object.keys(hourlyData).sort();
+                hourlyChart.data.labels = sortedHours;
+                hourlyChart.data.datasets[0].data = sortedHours.map(hour => hourlyData[hour]);
+                hourlyChart.update();
+            }
+        }
+
+        // Update campaigns table
+        function updateTable(campaigns) {
+            if (campaignsDataTable) {
+                campaignsDataTable.destroy();
+            }
+
+            const tbody = document.querySelector('#campaignsTable tbody');
+            
+            if (campaigns.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center">No campaigns found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = campaigns.map(campaign => {
+                const statusClass = getStatusClass(campaign['Campaign Status']);
+                const campaignTimes = [
+                    campaign['1st Campaign'] || '',
+                    campaign['2nd Campaign'] || '',
+                    campaign['3rd Campaign'] || '',
+                    campaign['4th Campaign'] || ''
+                ].filter(time => time && time !== 'None').join(', ');
+
+                return `
+                    <tr>
+                        <td><strong>${campaign['Client'] || 'N/A'}</strong></td>
+                        <td>${campaign['Bot Name'] || 'N/A'}</td>
+                        <td>${campaignTimes || 'N/A'}</td>
+                        <td><span class="status-badge ${statusClass}">${campaign['Campaign Status'] || 'Unknown'}</span></td>
+                        <td>${campaign['Application Status (Voice)'] || 'N/A'}</td>
+                        <td>${campaign['Monitoring'] || 'N/A'}</td>
+                        <td>${campaign['Reports'] || 'N/A'}</td>
+                        <td>${campaign[' reporting CM'] || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewDetails('${campaign['Client']}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Reinitialize DataTable
+            initDataTable();
+        }
+
+        // Get status class for styling
+        function getStatusClass(status) {
+            if (!status) return 'status-no-file';
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('live')) return 'status-live';
+            if (statusLower.includes('posted')) return 'status-posted';
+            return 'status-no-file';
+        }
+
+        // Update last update time
+        function updateLastUpdateTime(timestamp) {
+            if (timestamp) {
+                const date = new Date(timestamp);
+                document.getElementById('lastUpdate').textContent = 
+                    `Last update: ${date.toLocaleTimeString()}`;
+            }
+        }
+
+        // Manual refresh
+        async function refreshData() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            button.disabled = true;
+
+            try {
+                await fetchData();
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        // Update configuration
+        async function updateConfig() {
+            const sheetUrl = document.getElementById('sheetUrl').value;
+            
+            if (!sheetUrl) {
+                showError('Please enter a valid Google Sheets URL');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await axios.post('/api/config', {
+                    sheet_url: sheetUrl
+                });
+
+                if (response.data.status === 'success') {
+                    await fetchData();
+                } else {
+                    showError(response.data.message || 'Failed to load data from the sheet');
+                }
+            } catch (error) {
+                console.error('Error updating config:', error);
+                showError('Failed to load data. Please check your sheet URL and sharing settings.');
+            }
+        }
+
+        // Export data
+        function exportData() {
+            window.open('/api/export', '_blank');
+        }
+
+        // Toggle filters
+        function toggleFilters() {
+            const filterSection = document.getElementById('filterSection');
+            filterSection.style.display = filterSection.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('appStatusFilter').value = '';
+            document.getElementById('clientSearch').value = '';
+            if (campaignsDataTable) {
+                campaignsDataTable.search('').draw();
+            }
+        }
+
+        // View details
+        function viewDetails(client) {
+            alert(`Details for ${client} will be implemented in the next version!`);
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            
+            // Try to load data with default URL
+            const defaultUrl = document.getElementById('sheetUrl').value;
+            if (defaultUrl) {
+                updateConfig();
+            }
+            
+            // Auto-refresh every minute
+            setInterval(fetchData, 60000);
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+

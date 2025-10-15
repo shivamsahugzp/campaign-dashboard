@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Dashboard - Simple</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .status-live {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-posted {
+            background-color: #ffc107;
+            color: black;
+        }
+        .status-no-file {
+            background-color: #dc3545;
+            color: white;
+        }
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .config-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 0;
+            margin-bottom: 30px;
+            border-radius: 15px;
+        }
+        .step-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container-fluid">
+        <!-- Hero Section -->
+        <div class="hero-section text-center">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-chart-line"></i> Campaign Dashboard
+            </h1>
+            <p class="lead">Just paste your Google Sheets URL and get instant insights!</p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="input-group input-group-lg">
+                        <input type="url" class="form-control" id="sheetUrl" 
+                               placeholder="Paste your Google Sheets URL here..." 
+                               value="https://docs.google.com/spreadsheets/d/1suvLm83Xlsx4k4h1KJqugFt0sh6dQn3Z47ugXr8lN5c/edit">
+                        <button class="btn btn-light" onclick="updateConfig()">
+                            <i class="fas fa-rocket"></i> Load Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Setup Steps -->
+        <div class="row mb-4" id="setupSteps">
+            <div class="col-12">
+                <h4><i class="fas fa-info-circle"></i> Quick Setup (No API Keys Needed!)</h4>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="step-card">
+                            <h5><i class="fas fa-share-alt text-primary"></i> Step 1</h5>
+                            <p>Make your Google Sheet <strong>publicly viewable</strong> or share it with "Anyone with the link can view"</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="step-card">
+                            <h5><i class="fas fa-link text-primary"></i> Step 2</h5>
+                            <p>Copy your Google Sheets URL and paste it above</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="step-card">
+                            <h5><i class="fas fa-chart-bar text-primary"></i> Step 3</h5>
+                            <p>Click "Load Dashboard" and watch your data come alive!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Refresh Indicator -->
+        <div class="refresh-indicator">
+            <button class="btn btn-outline-primary" onclick="refreshData()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <small class="text-muted d-block mt-1" id="lastUpdate">Last update: Never</small>
+        </div>
+
+        <!-- Dashboard Content (Hidden initially) -->
+        <div id="dashboardContent" style="display: none;">
+            <!-- Metrics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalClients">-</div>
+                        <div class="metric-label">Total Clients</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="liveCampaigns">-</div>
+                        <div class="metric-label">Live Campaigns</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalLeads">-</div>
+                        <div class="metric-label">Total Leads Dialled</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="metric-card">
+                        <div class="metric-value" id="connectedCalls">-</div>
+                        <div class="metric-label">Connected Calls</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h5><i class="fas fa-pie-chart"></i> Campaign Status Distribution</h5>
+                        <canvas id="campaignStatusChart"></canvas>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="chart-container">
+                        <h5><i class="fas fa-bar-chart"></i> Application Status</h5>
+                        <canvas id="applicationStatusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Campaigns Table -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="table-container">
+                        <h5><i class="fas fa-table"></i> Live Campaigns</h5>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Client</th>
+                                        <th>Bot Name</th>
+                                        <th>Campaign Times</th>
+                                        <th>Status</th>
+                                        <th>Monitoring</th>
+                                        <th>Reports</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="campaignsTable">
+                                    <tr>
+                                        <td colspan="6" class="text-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center" style="display: none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading your dashboard...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="alert alert-danger" style="display: none;">
+            <h5><i class="fas fa-exclamation-triangle"></i> Unable to Load Data</h5>
+            <p id="errorMessage"></p>
+            <p><strong>Quick Fix:</strong> Make sure your Google Sheet is publicly viewable or shared with "Anyone with the link can view"</p>
+        </div>
+    </div>
+
+    <script>
+        let campaignStatusChart, applicationStatusChart;
+
+        // Initialize charts
+        function initCharts() {
+            const ctx1 = document.getElementById('campaignStatusChart').getContext('2d');
+            const ctx2 = document.getElementById('applicationStatusChart').getContext('2d');
+
+            campaignStatusChart = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545',
+                            '#17a2b8',
+                            '#6f42c1'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+
+            applicationStatusChart = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Count',
+                        data: [],
+                        backgroundColor: '#667eea'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Show loading state
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('setupSteps').style.display = 'none';
+        }
+
+        // Show error state
+        function showError(message) {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('setupSteps').style.display = 'block';
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('setupSteps').style.display = 'none';
+        }
+
+        // Fetch data from API
+        async function fetchData() {
+            try {
+                const response = await axios.get('/api/data');
+                const data = response.data.data;
+                
+                if (data && data.metrics) {
+                    showDashboard();
+                    updateMetrics(data.metrics);
+                    updateCharts(data.metrics);
+                    updateTable(data.live_campaigns || []);
+                    updateLastUpdateTime(response.data.last_update);
+                } else {
+                    showError('No data found. Please check your sheet URL and sharing settings.');
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                showError('Failed to fetch data. Please check your sheet URL and sharing settings.');
+            }
+        }
+
+        // Update metrics cards
+        function updateMetrics(metrics) {
+            document.getElementById('totalClients').textContent = metrics.total_clients || 0;
+            document.getElementById('liveCampaigns').textContent = metrics.live_campaigns || 0;
+            document.getElementById('totalLeads').textContent = metrics.total_leads_dialled || 0;
+            document.getElementById('connectedCalls').textContent = metrics.total_connected_calls || 0;
+        }
+
+        // Update charts
+        function updateCharts(metrics) {
+            // Campaign Status Chart
+            if (metrics.campaign_status_breakdown) {
+                const statusData = metrics.campaign_status_breakdown;
+                campaignStatusChart.data.labels = Object.keys(statusData);
+                campaignStatusChart.data.datasets[0].data = Object.values(statusData);
+                campaignStatusChart.update();
+            }
+
+            // Application Status Chart
+            if (metrics.application_status_breakdown) {
+                const appData = metrics.application_status_breakdown;
+                applicationStatusChart.data.labels = Object.keys(appData);
+                applicationStatusChart.data.datasets[0].data = Object.values(appData);
+                applicationStatusChart.update();
+            }
+        }
+
+        // Update campaigns table
+        function updateTable(campaigns) {
+            const tbody = document.getElementById('campaignsTable');
+            
+            if (campaigns.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center">No live campaigns found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = campaigns.map(campaign => {
+                const statusClass = getStatusClass(campaign['Campaign Status']);
+                const campaignTimes = [
+                    campaign['1st Campaign'] || '',
+                    campaign['2nd Campaign'] || '',
+                    campaign['3rd Campaign'] || '',
+                    campaign['4th Campaign'] || ''
+                ].filter(time => time && time !== 'None').join(', ');
+
+                return `
+                    <tr>
+                        <td><strong>${campaign['Client'] || 'N/A'}</strong></td>
+                        <td>${campaign['Bot Name'] || 'N/A'}</td>
+                        <td>${campaignTimes || 'N/A'}</td>
+                        <td><span class="status-badge ${statusClass}">${campaign['Campaign Status'] || 'Unknown'}</span></td>
+                        <td>${campaign['Monitoring'] || 'N/A'}</td>
+                        <td>${campaign['Reports'] || 'N/A'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Get status class for styling
+        function getStatusClass(status) {
+            if (!status) return 'status-no-file';
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('live')) return 'status-live';
+            if (statusLower.includes('posted')) return 'status-posted';
+            return 'status-no-file';
+        }
+
+        // Update last update time
+        function updateLastUpdateTime(timestamp) {
+            if (timestamp) {
+                const date = new Date(timestamp);
+                document.getElementById('lastUpdate').textContent = 
+                    `Last update: ${date.toLocaleTimeString()}`;
+            }
+        }
+
+        // Manual refresh
+        async function refreshData() {
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+            button.disabled = true;
+
+            try {
+                await fetchData();
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            }
+        }
+
+        // Update configuration
+        async function updateConfig() {
+            const sheetUrl = document.getElementById('sheetUrl').value;
+            
+            if (!sheetUrl) {
+                showError('Please enter a valid Google Sheets URL');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await axios.post('/api/config', {
+                    sheet_url: sheetUrl
+                });
+
+                if (response.data.status === 'success') {
+                    await fetchData();
+                } else {
+                    showError(response.data.message || 'Failed to load data from the sheet');
+                }
+            } catch (error) {
+                console.error('Error updating config:', error);
+                showError('Failed to load data. Please check your sheet URL and sharing settings.');
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+            
+            // Try to load data with default URL
+            const defaultUrl = document.getElementById('sheetUrl').value;
+            if (defaultUrl) {
+                updateConfig();
+            }
+            
+            // Auto-refresh every minute
+            setInterval(fetchData, 60000);
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+
+
